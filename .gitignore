@@ -19,3 +19,6 @@ yarn.lock
 
 # VSCode
 .vscode
+
+# Portfolio config
+.summariser.json

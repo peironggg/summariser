@@ -1,7 +1,15 @@
 {
   "orders": [
-    { "ticker": "AAPL", "purchaseDate": "2019-5-3", "volume": 1000, "cost": 124 },
-    { "ticker": "AAPL", "purchaseDate": "2020-3-6", "volume": 500, "cost": 120 },
-    { "ticker": "D05.SI", "purchaseDate": "2019-5-3", "volume": 1000, "cost": 23 }
+    { "ticker": "BABA", "purchaseDate": "2021-5-4", "volume": 39, "cost": 230.042 },
+    { "ticker": "C38U.SI", "purchaseDate": "2020-1-8", "volume": 1600, "cost": 2.448 },
+    { "ticker": "XLF", "purchaseDate": "2021-3-22", "volume": 250, "cost": 33.858 },
+    { "ticker": "VOO", "purchaseDate": "2021-3-8", "volume": 23, "cost": 353.21 },
+    { "ticker": "D05.SI", "purchaseDate": "2020-4-13", "volume": 200, "cost": 19.06 },
+    { "ticker": "D05.SI", "purchaseDate": "2020-6-8", "volume": 900, "cost": 22.729 },
+    { "ticker": "A17U.SI", "purchaseDate": "2020-11-18", "volume": 3300, "cost": 2.98 },
+    { "ticker": "A17U.SI", "purchaseDate": "2020-9-22", "volume": 3100, "cost": 3.2 },
+    { "ticker": "C31.SI", "purchaseDate": "2020-8-13", "volume": 3500, "cost": 2.75 },
+    { "ticker": "D05.SI", "purchaseDate": "2020-9-22", "volume": 500, "cost": 19.7 },
+    { "ticker": "Z74.SI", "purchaseDate": "2020-12-24", "volume": 4500, "cost": 2.31 }
   ]
 }
