@@ -1,0 +1,29 @@
+{
+  "name": "summariser",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "repository": "https://github.com/peironggg/summariser.git",
+  "author": "Wu Peirong <wupeirong294@gmail.com>",
+  "license": "MIT",
+  "bin": {
+    "summariser": "lib/index.js"
+  },
+  "scripts": {
+    "prepare": "husky install",
+    "build": "tsc && chmod +x lib/index.js"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.28.0",
+    "@typescript-eslint/parser": "^4.28.0",
+    "eslint": "^7.29.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "husky": "^6.0.0",
+    "lint-staged": ">=10",
+    "prettier": "^2.3.2",
+    "typescript": "^4.3.4"
+  },
+  "lint-staged": {
+    "*.js": "eslint --cache --fix"
+  }
+}
