@@ -1,6 +1,6 @@
 import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
-import chalk from 'chalk';
+import { groupBy } from 'lodash';
 import { readLocalConfig, indent, log, errorLog } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS } from '../utils/constants';
 
@@ -11,13 +11,21 @@ export const start = (): void => {
   try {
     const portfolio = readLocalConfig();
     const promises: Array<Promise<string>> = [];
+
+    const groupedOrders = groupBy(portfolio.orders, 'ticker');
     // Get profit of orders
-    portfolio.orders.forEach(({ ticker, cost, volume }) => {
+    Object.keys(groupedOrders).forEach((ticker) => {
       promises.push(
         yahooFinance
           .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
           .then(({ regularMarketPrice, symbol, displayName, financialCurrency }) => {
-            const profit = (((regularMarketPrice as number) - cost) * volume).toFixed(2);
+            const profit = groupedOrders[ticker]
+              .reduce(
+                (sum, { cost, volume }) =>
+                  (sum += ((regularMarketPrice as number) - cost) * volume),
+                0,
+              )
+              .toFixed(2);
             return indent(`${displayName ?? symbol}: ${profit} ${financialCurrency}`);
           }),
       );
