@@ -1,1 +1,6 @@
-{ "orders": [{ "ticker": "AAPL", "purchaseDate": "3/5/2019", "volume": 1000 }] }
+{
+  "orders": [
+    { "ticker": "AAPL", "purchaseDate": "2019-5-3", "volume": 1000, "cost": 124 },
+    { "ticker": "D05.SI", "purchaseDate": "2019-5-3", "volume": 1000, "cost": 23 }
+  ]
+}
