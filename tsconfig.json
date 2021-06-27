@@ -5,6 +5,7 @@
     "allowJs": true,
     "outDir": "lib",
     "strict": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "esModuleInterop": true
   }
 }
