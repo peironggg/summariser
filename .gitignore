@@ -7,7 +7,6 @@ out
 node_modules
 package-lock.json
 yarn.lock
-!/yarn.lock
 
 # Logs
 *.log
@@ -17,3 +16,6 @@ yarn.lock
 
 # ESLint cache
 .eslintcache
+
+# VSCode
+.vscode
