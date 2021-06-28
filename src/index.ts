@@ -14,7 +14,7 @@ program.command('start').description('starts processing orders in portfolio conf
 
 program
   .command('find')
-  .description('finds closest tickers related to arument')
+  .description('finds closest tickers related to argument')
   .argument('<ticker>')
   .action(find);
 
