@@ -18,7 +18,11 @@ export const writeLocalConfig = (config: PortfolioConfig): void => {
 
 export const indent = (message: string): string => `  ${message}`;
 
-export const log = (profit: string): void => {
+export const log = (message: string): void => {
+  console.log(chalk.bold.white(message));
+};
+
+export const logSummary = (profit: string): void => {
   console.log(chalk.bold.white(`Date: ${new Date().toDateString()}\nProfit\n${profit}`));
 };
 

@@ -1,7 +1,7 @@
 import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
 import { groupBy } from 'lodash';
-import { readLocalConfig, indent, log, errorLog } from '../utils/helper';
+import { readLocalConfig, indent, logSummary, errorLog } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS } from '../utils/constants';
 import { OrderConfig } from '../utils/types';
 
@@ -25,14 +25,14 @@ export const start = (): void => {
       Object.keys(groupedOrders).map((ticker) =>
         yahooFinance
           .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
-          .then(({ regularMarketPrice, symbol, displayName, financialCurrency }) => {
+          .then(({ regularMarketPrice, symbol, displayName, currency }) => {
             const profit = getProfit(groupedOrders[ticker], regularMarketPrice);
-            return indent(`${displayName ?? symbol}: ${profit} ${financialCurrency}`);
+            return indent(`${displayName ?? symbol}: ${profit} ${currency}`);
           }),
       ),
     ).then((allStringOutput) => {
       spinner.succeed('Fetched successfully');
-      log(allStringOutput.join('\n'));
+      logSummary(allStringOutput.join('\n'));
     });
   } catch (error) {
     spinner.fail();

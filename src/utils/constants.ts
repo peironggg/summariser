@@ -12,7 +12,7 @@ export const DEFAULT_CONFIG: PortfolioConfig = {
 export const REQUIRED_YAHOO_FIELDS: QuoteField[] = [
   'displayName',
   'symbol',
-  'financialCurrency',
+  'currency',
   'regularMarketPrice',
   'regularMarketTime',
 ];
