@@ -38,8 +38,8 @@ Contains information about the orders you have made. Repeated orders for the sam
 ```json
 {
   "orders": [
-    { "ticker": "AAPL", "volume": 1000, "cost": 124 },
-    { "ticker": "AAPL", "volume": 2000, "cost": 120 }
+    { "ticker": "AAPL", "volume": 1000, "cost": 124, "purchaseDate": "2019-5-3" },
+    { "ticker": "AAPL", "volume": 2000, "cost": 120, "purchaseDate": "2019-7-25" }
   ]
 }
 ```
@@ -50,8 +50,9 @@ Contains information about the orders you have made. Repeated orders for the sam
 
 ### OrderConfig
 
-| Name     | Type   | Description                                                                     |
-| -------- | ------ | ------------------------------------------------------------------------------- |
-| `ticker` | string | Stock or option symbol as listed in [Yahoo finance](https://finance.yahoo.com/) |
-| `volume` | number | Number of shares bought this order                                              |
-| `cost`   | number | Per-share cost                                                                  |
+| Name           | Type   | Description                                                                     |
+| -------------- | ------ | ------------------------------------------------------------------------------- |
+| `ticker`       | string | Stock or option symbol as listed in [Yahoo finance](https://finance.yahoo.com/) |
+| `volume`       | number | Number of shares bought this order                                              |
+| `cost`         | number | Per-share cost                                                                  |
+| `purchaseDate` | string | Date of order purchase in `YYYY-MM-DD` format                                   |

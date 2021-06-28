@@ -17,7 +17,7 @@ export const REQUIRED_YAHOO_FIELDS: QuoteField[] = [
   'regularMarketTime',
 ];
 
-export const INITIAL_COMPUTED_PROPERTIES: ComputedTickerMetric = {
+export const INITIAL_TICKER_METRIC: ComputedTickerMetric = {
   totalVolume: 0,
   totalCost: 0,
 };

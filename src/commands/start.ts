@@ -2,7 +2,7 @@ import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
 import { Dictionary, groupBy, sumBy, zipWith, round } from 'lodash';
 import { readLocalConfig, logSummary, logErrors } from '../utils/helper';
-import { REQUIRED_YAHOO_FIELDS, INITIAL_COMPUTED_PROPERTIES } from '../utils/constants';
+import { REQUIRED_YAHOO_FIELDS, INITIAL_TICKER_METRIC } from '../utils/constants';
 import {
   ComputedTotalMetric,
   DividendColumns,
@@ -19,7 +19,7 @@ const computeTickerMetrics = (orders: OrderConfig[]) =>
       totalVolume: metrics.totalVolume + volume,
       totalCost: metrics.totalCost + cost * volume,
     };
-  }, INITIAL_COMPUTED_PROPERTIES);
+  }, INITIAL_TICKER_METRIC);
 
 const computeMetrics = (ordersObj: Dictionary<OrderConfig[]>) =>
   Object.keys(ordersObj).reduce(

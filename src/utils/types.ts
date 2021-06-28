@@ -8,7 +8,7 @@ export interface OrderConfig {
 }
 
 export interface PortfolioConfig {
-  orders: [OrderConfig];
+  orders: OrderConfig[];
 }
 
 export interface YahooDividendsRow {
