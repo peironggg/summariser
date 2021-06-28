@@ -1,6 +1,6 @@
 import fs from 'fs';
 import chalk from 'chalk';
-import { PortfolioConfig, TableRowToPrint } from './types';
+import { PortfolioConfig, SummaryColumns } from './types';
 import { LOCAL_CONFIG_PATH, DEFAULT_CONFIG } from './constants';
 
 export const readLocalConfig = (): PortfolioConfig => {
@@ -20,7 +20,7 @@ export const log = (message: string): void => {
   console.log(chalk.bold.white(message));
 };
 
-export const logSummary = (rows: TableRowToPrint[]): void => {
+export const logSummary = (rows: SummaryColumns[]): void => {
   console.log(chalk.bold.white(`Date: ${new Date().toDateString()}`));
   console.table(rows);
 };

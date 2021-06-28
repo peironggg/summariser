@@ -9,14 +9,27 @@ export interface PortfolioConfig {
   orders: [OrderConfig];
 }
 
+export interface YahooDividendsRow {
+  date: string;
+  dividends: number;
+}
+
+export type YahooDividendsResponse = YahooDividendsRow[];
+
 export interface ComputedProperties {
   totalVolume: number;
   totalCost: number;
 }
 
-export interface TableRowToPrint {
+export interface SummaryColumns {
   ticker: string;
   profit: string | undefined;
   currency: string | undefined;
   change: string | undefined;
 }
+
+export interface DividendColumns {
+  dividends: string | undefined;
+}
+
+export type Columns = (SummaryColumns & DividendColumns)[];
