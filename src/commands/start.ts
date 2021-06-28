@@ -3,6 +3,14 @@ import ora from 'ora';
 import { groupBy } from 'lodash';
 import { readLocalConfig, indent, log, errorLog } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS } from '../utils/constants';
+import { OrderConfig } from '../utils/types';
+
+const getProfit = (orders: OrderConfig[], currPrice: number | undefined) =>
+  currPrice
+    ? orders
+        .reduce((sum, { cost, volume }) => (sum += ((currPrice as number) - cost) * volume), 0)
+        .toFixed(2)
+    : 0;
 
 export const start = (): void => {
   const spinner = ora({ spinner: 'circle' });
@@ -10,27 +18,19 @@ export const start = (): void => {
 
   try {
     const portfolio = readLocalConfig();
-    const promises: Array<Promise<string>> = [];
 
     const groupedOrders = groupBy(portfolio.orders, 'ticker');
     // Get profit of orders
-    Object.keys(groupedOrders).forEach((ticker) => {
-      promises.push(
+    Promise.all(
+      Object.keys(groupedOrders).map((ticker) =>
         yahooFinance
           .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
           .then(({ regularMarketPrice, symbol, displayName, financialCurrency }) => {
-            const profit = groupedOrders[ticker]
-              .reduce(
-                (sum, { cost, volume }) =>
-                  (sum += ((regularMarketPrice as number) - cost) * volume),
-                0,
-              )
-              .toFixed(2);
+            const profit = getProfit(groupedOrders[ticker], regularMarketPrice);
             return indent(`${displayName ?? symbol}: ${profit} ${financialCurrency}`);
           }),
-      );
-    });
-    Promise.all(promises).then((allStringOutput) => {
+      ),
+    ).then((allStringOutput) => {
       spinner.succeed('Fetched successfully');
       log(allStringOutput.join('\n'));
     });

@@ -1,4 +1,4 @@
-interface OrderConfig {
+export interface OrderConfig {
   ticker: string;
   purchaseDate: string;
   volume: number;
