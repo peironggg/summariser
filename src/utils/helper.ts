@@ -1,6 +1,6 @@
 import fs from 'fs';
 import chalk from 'chalk';
-import { PortfolioConfig } from './types';
+import { PortfolioConfig, TableRowToPrint } from './types';
 import { LOCAL_CONFIG_PATH, DEFAULT_CONFIG } from './constants';
 
 export const readLocalConfig = (): PortfolioConfig => {
@@ -16,14 +16,13 @@ export const writeLocalConfig = (config: PortfolioConfig): void => {
   fs.writeFileSync(LOCAL_CONFIG_PATH, JSON.stringify(config));
 };
 
-export const indent = (message: string): string => `  ${message}`;
-
 export const log = (message: string): void => {
   console.log(chalk.bold.white(message));
 };
 
-export const logSummary = (profit: string): void => {
-  console.log(chalk.bold.white(`Date: ${new Date().toDateString()}\nProfit\n${profit}`));
+export const logSummary = (rows: TableRowToPrint[]): void => {
+  console.log(chalk.bold.white(`Date: ${new Date().toDateString()}`));
+  console.table(rows);
 };
 
 export const errorLog = (message: string): void => {

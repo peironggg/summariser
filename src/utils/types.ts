@@ -8,3 +8,15 @@ export interface OrderConfig {
 export interface PortfolioConfig {
   orders: [OrderConfig];
 }
+
+export interface ComputedProperties {
+  totalVolume: number;
+  totalCost: number;
+}
+
+export interface TableRowToPrint {
+  ticker: string;
+  profit: string | undefined;
+  currency: string | undefined;
+  change: string | undefined;
+}

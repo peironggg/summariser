@@ -1,16 +1,17 @@
 import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
 import { groupBy } from 'lodash';
-import { readLocalConfig, indent, logSummary, errorLog } from '../utils/helper';
-import { REQUIRED_YAHOO_FIELDS } from '../utils/constants';
-import { OrderConfig } from '../utils/types';
+import { readLocalConfig, logSummary, errorLog } from '../utils/helper';
+import { REQUIRED_YAHOO_FIELDS, INITIAL_COMPUTED_PROPERTIES } from '../utils/constants';
+import { OrderConfig, TableRowToPrint } from '../utils/types';
 
-const getProfit = (orders: OrderConfig[], currPrice: number | undefined) =>
-  currPrice
-    ? orders
-        .reduce((sum, { cost, volume }) => (sum += ((currPrice as number) - cost) * volume), 0)
-        .toFixed(2)
-    : 0;
+const computeMetrics = (orders: OrderConfig[]) =>
+  orders.reduce((metrics, { cost, volume }) => {
+    return {
+      totalVolume: metrics.totalVolume + volume,
+      totalCost: metrics.totalCost + cost * volume,
+    };
+  }, INITIAL_COMPUTED_PROPERTIES);
 
 export const start = (): void => {
   const spinner = ora({ spinner: 'circle' });
@@ -26,13 +27,20 @@ export const start = (): void => {
         yahooFinance
           .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
           .then(({ regularMarketPrice, symbol, displayName, currency }) => {
-            const profit = getProfit(groupedOrders[ticker], regularMarketPrice);
-            return indent(`${displayName ?? symbol}: ${profit} ${currency}`);
+            const { totalCost, totalVolume } = computeMetrics(groupedOrders[ticker]);
+            const profit = regularMarketPrice && regularMarketPrice * totalVolume - totalCost;
+            const percentageChange = profit && (profit / totalCost) * 100;
+            return {
+              ticker: displayName ?? symbol,
+              profit: profit?.toFixed(2),
+              currency,
+              change: percentageChange?.toFixed(2),
+            };
           }),
       ),
-    ).then((allStringOutput) => {
+    ).then((output: TableRowToPrint[]) => {
       spinner.succeed('Fetched successfully');
-      logSummary(allStringOutput.join('\n'));
+      logSummary(output);
     });
   } catch (error) {
     spinner.fail();

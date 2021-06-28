@@ -1,6 +1,6 @@
 import path from 'path';
 import { QuoteField } from 'yahoo-finance2/dist/esm/src/modules/quote';
-import { PortfolioConfig } from './types';
+import { ComputedProperties, PortfolioConfig } from './types';
 
 export const LOCAL_CONFIG_PATH = path.join(__dirname, '../..', '.summariser.json');
 
@@ -16,3 +16,8 @@ export const REQUIRED_YAHOO_FIELDS: QuoteField[] = [
   'regularMarketPrice',
   'regularMarketTime',
 ];
+
+export const INITIAL_COMPUTED_PROPERTIES: ComputedProperties = {
+  totalVolume: 0,
+  totalCost: 0,
+};
