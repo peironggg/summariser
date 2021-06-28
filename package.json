@@ -9,7 +9,7 @@
     "summariser": "lib/index.js"
   },
   "lint-staged": {
-    "*.js": "eslint --cache --fix"
+    "*.(js|ts)": "eslint --cache --fix"
   },
   "scripts": {
     "prepare": "husky install",
