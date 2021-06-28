@@ -1,3 +1,5 @@
+import { Dictionary } from 'lodash';
+
 export interface OrderConfig {
   ticker: string;
   purchaseDate: string;
@@ -16,23 +18,39 @@ export interface YahooDividendsRow {
 
 export type YahooDividendsResponse = YahooDividendsRow[];
 
-export interface ComputedProperties {
+export interface ComputedTickerMetric {
   totalVolume: number;
   totalCost: number;
 }
 
-export interface SummaryColumns {
+export type ComputedTotalMetric = Dictionary<ComputedTickerMetric>;
+
+export interface ProfitColumns {
   ticker: string;
-  profit: string | undefined;
+  profit: number | undefined;
   currency: string | undefined;
-  change: string | undefined;
+  change: number | undefined;
 }
 
 export interface DividendColumns {
-  dividends: string | undefined;
+  dividends: number | undefined;
 }
 
-export type Columns = (SummaryColumns & DividendColumns)[];
+export type TableData = (ProfitColumns & DividendColumns)[];
+
+export interface SummaryColumns {
+  totalCost: {
+    value: number;
+  };
+  profitSummary: {
+    value: number;
+    change: number;
+  };
+  profitWithDividendsSummary: {
+    value: number;
+    change: number;
+  };
+}
 
 export interface ErrorMessage {
   ticker: string;

@@ -1,17 +1,19 @@
 import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
-import { Dictionary, groupBy, sumBy, zipWith } from 'lodash';
+import { Dictionary, groupBy, sumBy, zipWith, round } from 'lodash';
 import { readLocalConfig, logSummary, logErrors } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS, INITIAL_COMPUTED_PROPERTIES } from '../utils/constants';
 import {
+  ComputedTotalMetric,
   DividendColumns,
   ErrorMessage,
   OrderConfig,
+  ProfitColumns,
   SummaryColumns,
   YahooDividendsResponse,
 } from '../utils/types';
 
-const computeMetrics = (orders: OrderConfig[]) =>
+const computeTickerMetrics = (orders: OrderConfig[]) =>
   orders.reduce((metrics, { cost, volume }) => {
     return {
       totalVolume: metrics.totalVolume + volume,
@@ -19,23 +21,60 @@ const computeMetrics = (orders: OrderConfig[]) =>
     };
   }, INITIAL_COMPUTED_PROPERTIES);
 
+const computeMetrics = (ordersObj: Dictionary<OrderConfig[]>) =>
+  Object.keys(ordersObj).reduce(
+    (metricsObj, ticker) => ({
+      ...metricsObj,
+      [ticker]: computeTickerMetrics(ordersObj[ticker]),
+    }),
+    {} as ComputedTotalMetric,
+  );
+
+const computeSummary = (
+  metrics: ComputedTotalMetric,
+  profits: ProfitColumns[],
+  dividends: DividendColumns[],
+): SummaryColumns => {
+  const totalProfit = round(sumBy(profits, 'profit'), 2);
+  const totalDividends = round(sumBy(dividends, 'dividends'), 2);
+  const totalCost = Object.keys(metrics).reduce(
+    (sum, ticker) => sum + metrics[ticker].totalCost,
+    0,
+  );
+  const profitWithDividends = totalProfit + totalDividends;
+  return {
+    totalCost: {
+      value: totalCost,
+    },
+    profitSummary: {
+      value: totalProfit,
+      change: round((totalProfit / totalCost) * 100, 2),
+    },
+    profitWithDividendsSummary: {
+      value: profitWithDividends,
+      change: round((profitWithDividends / totalCost) * 100, 2),
+    },
+  };
+};
+
 // 1 API call sent for ALL orders due to use of quoteCombine
-const getSummaryPromise = (
+const getProfitPromise = (
   groupedOrders: Dictionary<OrderConfig[]>,
   errors: ErrorMessage[],
-): Array<Promise<SummaryColumns>> =>
+  totalMetric: ComputedTotalMetric,
+): Array<Promise<ProfitColumns>> =>
   Object.keys(groupedOrders).map((ticker) =>
     yahooFinance
       .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
       .then(({ regularMarketPrice, displayName, currency }) => {
-        const { totalCost, totalVolume } = computeMetrics(groupedOrders[ticker]);
+        const { totalCost, totalVolume } = totalMetric[ticker];
         const profit = regularMarketPrice && regularMarketPrice * totalVolume - totalCost;
         const percentageChange = profit && (profit / totalCost) * 100;
         return {
           ticker: displayName ?? ticker,
-          profit: profit?.toFixed(2),
+          profit: profit && round(profit, 2),
           currency,
-          change: percentageChange?.toFixed(2),
+          change: percentageChange && round(percentageChange, 2),
         };
       })
       .catch((error) => {
@@ -64,7 +103,7 @@ const getDividendPromise = (
       ),
     )
       .then((orderDivArr) => ({
-        dividends: sumBy(orderDivArr).toFixed(2),
+        dividends: round(sumBy(orderDivArr), 2),
       }))
       .catch((error) => {
         errors.push({ ticker, error });
@@ -81,14 +120,16 @@ export const start = async (): Promise<void> => {
   const errors: ErrorMessage[] = [];
   const portfolio = readLocalConfig();
   const groupedOrders = groupBy(portfolio.orders, 'ticker');
-  // Get profit and summary of orders
-  const resolvedSummaryArr = await Promise.all(getSummaryPromise(groupedOrders, errors));
-  const resolvedDividendArr = await Promise.all(getDividendPromise(groupedOrders, errors));
-  const zippedOutput = zipWith(resolvedSummaryArr, resolvedDividendArr, (summary, dividend) => ({
-    ...summary,
+  const metrics = computeMetrics(groupedOrders);
+  // Get profit and profit of orders
+  const resolvedProfitData = await Promise.all(getProfitPromise(groupedOrders, errors, metrics));
+  const resolvedDividendData = await Promise.all(getDividendPromise(groupedOrders, errors));
+  const zippedOutput = zipWith(resolvedProfitData, resolvedDividendData, (profit, dividend) => ({
+    ...profit,
     ...dividend,
   }));
+  const summaryData = computeSummary(metrics, resolvedProfitData, resolvedDividendData);
   spinner.succeed('Fetched');
   logErrors(errors);
-  logSummary(zippedOutput);
+  logSummary(zippedOutput, summaryData);
 };
