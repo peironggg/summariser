@@ -33,3 +33,8 @@ export interface DividendColumns {
 }
 
 export type Columns = (SummaryColumns & DividendColumns)[];
+
+export interface ErrorMessage {
+  ticker: string;
+  error: Error;
+}

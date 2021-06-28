@@ -12,7 +12,6 @@ export const DEFAULT_CONFIG: PortfolioConfig = {
 // https://github.com/gadicc/node-yahoo-finance2/blob/devel/docs/modules/quote.md
 export const REQUIRED_YAHOO_FIELDS: QuoteField[] = [
   'displayName',
-  'symbol',
   'currency',
   'regularMarketPrice',
   'regularMarketTime',

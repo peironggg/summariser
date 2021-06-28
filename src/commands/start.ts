@@ -1,10 +1,11 @@
 import yahooFinance from 'yahoo-finance2';
 import ora from 'ora';
 import { Dictionary, groupBy, sumBy, zipWith } from 'lodash';
-import { readLocalConfig, logSummary, errorLog } from '../utils/helper';
+import { readLocalConfig, logSummary, logErrors } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS, INITIAL_COMPUTED_PROPERTIES } from '../utils/constants';
 import {
   DividendColumns,
+  ErrorMessage,
   OrderConfig,
   SummaryColumns,
   YahooDividendsResponse,
@@ -21,19 +22,29 @@ const computeMetrics = (orders: OrderConfig[]) =>
 // 1 API call sent for ALL orders due to use of quoteCombine
 const getSummaryPromise = (
   groupedOrders: Dictionary<OrderConfig[]>,
+  errors: ErrorMessage[],
 ): Array<Promise<SummaryColumns>> =>
   Object.keys(groupedOrders).map((ticker) =>
     yahooFinance
       .quoteCombine(ticker, { fields: REQUIRED_YAHOO_FIELDS })
-      .then(({ regularMarketPrice, symbol, displayName, currency }) => {
+      .then(({ regularMarketPrice, displayName, currency }) => {
         const { totalCost, totalVolume } = computeMetrics(groupedOrders[ticker]);
         const profit = regularMarketPrice && regularMarketPrice * totalVolume - totalCost;
         const percentageChange = profit && (profit / totalCost) * 100;
         return {
-          ticker: displayName ?? symbol,
+          ticker: displayName ?? ticker,
           profit: profit?.toFixed(2),
           currency,
           change: percentageChange?.toFixed(2),
+        };
+      })
+      .catch((error) => {
+        errors.push({ ticker, error });
+        return {
+          ticker,
+          profit: undefined,
+          currency: undefined,
+          change: undefined,
         };
       }),
   );
@@ -41,6 +52,7 @@ const getSummaryPromise = (
 // n API calls sent for EACH order as `historical` does not support multiple symbols
 const getDividendPromise = (
   groupedOrders: Dictionary<OrderConfig[]>,
+  errors: ErrorMessage[],
 ): Array<Promise<DividendColumns>> =>
   Object.keys(groupedOrders).map((ticker) =>
     Promise.all(
@@ -54,35 +66,29 @@ const getDividendPromise = (
       .then((orderDivArr) => ({
         dividends: sumBy(orderDivArr).toFixed(2),
       }))
-      .catch(() => ({ dividends: undefined })),
+      .catch((error) => {
+        errors.push({ ticker, error });
+        return {
+          dividends: undefined,
+        };
+      }),
   );
 
 export const start = async (): Promise<void> => {
   const spinner = ora({ spinner: 'circle' });
   spinner.start('Fetching data from server');
 
-  try {
-    const portfolio = readLocalConfig();
-    const groupedOrders = groupBy(portfolio.orders, 'ticker');
-    // Get profit and summary of orders
-    const resolvedSummaryArr = await Promise.all(getSummaryPromise(groupedOrders));
-    const resolvedDividendArr = await Promise.all(getDividendPromise(groupedOrders));
-    const zippedOutput = zipWith(resolvedSummaryArr, resolvedDividendArr, (summary, dividend) => ({
-      ...summary,
-      ...dividend,
-    }));
-    spinner.succeed('Fetched successfully');
-    logSummary(zippedOutput);
-  } catch (error) {
-    let spinnerMessage = '';
-    if (error instanceof yahooFinance.errors.FailedYahooValidationError) {
-      spinnerMessage = 'Failed to validate Yahoo response';
-    } else if (error instanceof yahooFinance.errors.HTTPError) {
-      spinnerMessage = 'HTTP network issues';
-    } else {
-      spinnerMessage = 'General error issue';
-    }
-    spinner.fail(spinnerMessage);
-    errorLog(error);
-  }
+  const errors: ErrorMessage[] = [];
+  const portfolio = readLocalConfig();
+  const groupedOrders = groupBy(portfolio.orders, 'ticker');
+  // Get profit and summary of orders
+  const resolvedSummaryArr = await Promise.all(getSummaryPromise(groupedOrders, errors));
+  const resolvedDividendArr = await Promise.all(getDividendPromise(groupedOrders, errors));
+  const zippedOutput = zipWith(resolvedSummaryArr, resolvedDividendArr, (summary, dividend) => ({
+    ...summary,
+    ...dividend,
+  }));
+  spinner.succeed('Fetched');
+  logErrors(errors);
+  logSummary(zippedOutput);
 };

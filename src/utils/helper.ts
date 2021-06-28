@@ -1,6 +1,6 @@
 import fs from 'fs';
 import chalk from 'chalk';
-import { PortfolioConfig, SummaryColumns } from './types';
+import { ErrorMessage, PortfolioConfig, SummaryColumns } from './types';
 import { LOCAL_CONFIG_PATH, DEFAULT_CONFIG } from './constants';
 
 export const readLocalConfig = (): PortfolioConfig => {
@@ -25,6 +25,8 @@ export const logSummary = (rows: SummaryColumns[]): void => {
   console.table(rows);
 };
 
-export const errorLog = (message: string): void => {
-  console.log(chalk.bold.red(message));
+export const logErrors = (errors: ErrorMessage[]): void => {
+  errors.forEach(({ ticker, error }) =>
+    console.log(chalk.yellow(`Skipping "${ticker}": [${error.name}] ${error.message}`)),
+  );
 };
