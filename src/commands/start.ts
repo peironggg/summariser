@@ -1,42 +1,41 @@
 import yahooFinance from 'yahoo-finance2';
+import { forward, sample, createEffect } from 'effector';
 import ora from 'ora';
-import { Dictionary, groupBy, sumBy, zipWith, round } from 'lodash';
+import { groupBy, sumBy, zipWith, round } from 'lodash';
 import { readLocalConfig, logSummary, logErrors } from '../utils/helper';
 import { REQUIRED_YAHOO_FIELDS, INITIAL_TICKER_METRIC } from '../utils/constants';
 import {
   ComputedTotalMetric,
   DividendColumns,
   ErrorMessage,
+  GroupedOrders,
   OrderConfig,
   ProfitColumns,
-  SummaryColumns,
+  SummaryData,
+  TableData,
   YahooDividendsResponse,
 } from '../utils/types';
+import {
+  addMetric,
+  addError,
+  addGroupedOrders,
+  addTableData,
+  $errors,
+  $metrics,
+  $groupedOrders,
+  $tableData,
+  $summaryData,
+} from '../effector/store';
 
-const computeTickerMetrics = (orders: OrderConfig[]) =>
-  orders.reduce((metrics, { cost, volume }) => {
-    return {
-      totalVolume: metrics.totalVolume + volume,
-      totalCost: metrics.totalCost + cost * volume,
-    };
-  }, INITIAL_TICKER_METRIC);
-
-const computeMetrics = (ordersObj: Dictionary<OrderConfig[]>) =>
-  Object.keys(ordersObj).reduce(
-    (metricsObj, ticker) => ({
-      ...metricsObj,
-      [ticker]: computeTickerMetrics(ordersObj[ticker]),
-    }),
-    {} as ComputedTotalMetric,
-  );
-
-const computeSummary = (
-  metrics: ComputedTotalMetric,
-  profits: ProfitColumns[],
-  dividends: DividendColumns[],
-): SummaryColumns => {
-  const totalProfit = round(sumBy(profits, 'profit'), 2);
-  const totalDividends = round(sumBy(dividends, 'dividends'), 2);
+const computeSummary = ({
+  metrics,
+  tableData,
+}: {
+  metrics: ComputedTotalMetric;
+  tableData: TableData;
+}): SummaryData => {
+  const totalProfit = round(sumBy(tableData, 'profit'), 2);
+  const totalDividends = round(sumBy(tableData, 'dividends'), 2);
   const totalCost = Object.keys(metrics).reduce(
     (sum, ticker) => sum + metrics[ticker].totalCost,
     0,
@@ -57,10 +56,25 @@ const computeSummary = (
   };
 };
 
+const computeTickerMetrics = (orders: OrderConfig[]) =>
+  orders.reduce((metrics, { cost, volume }) => {
+    return {
+      totalVolume: metrics.totalVolume + volume,
+      totalCost: metrics.totalCost + cost * volume,
+    };
+  }, INITIAL_TICKER_METRIC);
+
+const computeMetrics = (ordersObj: GroupedOrders) =>
+  Object.keys(ordersObj).reduce(
+    (metricsObj, ticker) => ({
+      ...metricsObj,
+      [ticker]: computeTickerMetrics(ordersObj[ticker]),
+    }),
+    {} as ComputedTotalMetric,
+  );
 // 1 API call sent for ALL orders due to use of quoteCombine
 const getProfitPromise = (
-  groupedOrders: Dictionary<OrderConfig[]>,
-  errors: ErrorMessage[],
+  groupedOrders: GroupedOrders,
   totalMetric: ComputedTotalMetric,
 ): Array<Promise<ProfitColumns>> =>
   Object.keys(groupedOrders).map((ticker) =>
@@ -78,7 +92,7 @@ const getProfitPromise = (
         };
       })
       .catch((error) => {
-        errors.push({ ticker, error });
+        addError({ ticker, error });
         return {
           ticker,
           profit: undefined,
@@ -89,10 +103,7 @@ const getProfitPromise = (
   );
 
 // n API calls sent for EACH order as `historical` does not support multiple symbols
-const getDividendPromise = (
-  groupedOrders: Dictionary<OrderConfig[]>,
-  errors: ErrorMessage[],
-): Array<Promise<DividendColumns>> =>
+const getDividendPromise = (groupedOrders: GroupedOrders): Array<Promise<DividendColumns>> =>
   Object.keys(groupedOrders).map((ticker) =>
     Promise.all(
       // This returns array of dividends for each order
@@ -106,7 +117,7 @@ const getDividendPromise = (
         dividends: round(sumBy(orderDivArr), 2),
       }))
       .catch((error) => {
-        errors.push({ ticker, error });
+        addError({ ticker, error });
         return {
           dividends: undefined,
         };
@@ -117,19 +128,55 @@ export const start = async (): Promise<void> => {
   const spinner = ora({ spinner: 'circle' });
   spinner.start('Fetching data from server');
 
-  const errors: ErrorMessage[] = [];
-  const portfolio = readLocalConfig();
-  const groupedOrders = groupBy(portfolio.orders, 'ticker');
-  const metrics = computeMetrics(groupedOrders);
-  // Get profit and profit of orders
-  const resolvedProfitData = await Promise.all(getProfitPromise(groupedOrders, errors, metrics));
-  const resolvedDividendData = await Promise.all(getDividendPromise(groupedOrders, errors));
-  const zippedOutput = zipWith(resolvedProfitData, resolvedDividendData, (profit, dividend) => ({
-    ...profit,
-    ...dividend,
-  }));
-  const summaryData = computeSummary(metrics, resolvedProfitData, resolvedDividendData);
-  spinner.succeed('Fetched');
-  logErrors(errors);
-  logSummary(zippedOutput, summaryData);
+  // Create effects
+  const readPortfolioFx = createEffect(() => groupBy(readLocalConfig().orders, 'ticker'));
+  const computeMetricsFx = createEffect(computeMetrics);
+  const startFetchingFx = createEffect<
+    { groupedOrders: GroupedOrders; metrics: ComputedTotalMetric },
+    TableData
+  >(async ({ groupedOrders, metrics }) => {
+    // Get profits and dividends of orders
+    const resolvedProfitData = await Promise.all(getProfitPromise(groupedOrders, metrics));
+    const resolvedDividendData = await Promise.all(getDividendPromise(groupedOrders));
+    return zipWith(resolvedProfitData, resolvedDividendData, (profit, dividend) => ({
+      ...profit,
+      ...dividend,
+    }));
+  });
+  const computeSummaryFx = createEffect(computeSummary);
+  const logFx = createEffect<
+    { tableData: TableData; summaryData: SummaryData; errors: ErrorMessage[] },
+    void
+  >(({ tableData, summaryData, errors }) => {
+    spinner.succeed('Fetched');
+    logErrors(errors);
+    logSummary(tableData, summaryData);
+  });
+
+  // Chain reactions
+  forward({ from: readPortfolioFx.doneData, to: addGroupedOrders });
+  forward({ from: $groupedOrders.updates, to: computeMetricsFx });
+  forward({ from: computeMetricsFx.doneData, to: addMetric });
+  sample({
+    source: $groupedOrders,
+    clock: $metrics.updates,
+    target: startFetchingFx,
+    fn: (groupedOrders, metrics) => ({ groupedOrders, metrics }),
+  });
+  forward({ from: startFetchingFx.doneData, to: addTableData });
+  sample({
+    source: $metrics,
+    clock: $tableData.updates,
+    target: computeSummaryFx,
+    fn: (metrics, tableData) => ({ metrics, tableData }),
+  });
+  forward({ from: computeSummaryFx.doneData, to: $summaryData });
+  sample({
+    source: [$tableData, $errors],
+    clock: $summaryData.updates,
+    target: logFx,
+    fn: ([tableData, errors], summaryData) => ({ tableData, summaryData, errors }),
+  });
+  // Start the ball rolling
+  readPortfolioFx();
 };

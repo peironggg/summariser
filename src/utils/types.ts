@@ -7,6 +7,8 @@ export interface OrderConfig {
   cost: number;
 }
 
+export type GroupedOrders = Dictionary<OrderConfig[]>;
+
 export interface PortfolioConfig {
   orders: OrderConfig[];
 }
@@ -38,15 +40,15 @@ export interface DividendColumns {
 
 export type TableData = (ProfitColumns & DividendColumns)[];
 
-export interface SummaryColumns {
-  totalCost: {
+export interface SummaryData {
+  totalCost?: {
     value: number;
   };
-  profitSummary: {
+  profitSummary?: {
     value: number;
     change: number;
   };
-  profitWithDividendsSummary: {
+  profitWithDividendsSummary?: {
     value: number;
     change: number;
   };
