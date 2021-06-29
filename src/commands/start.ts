@@ -20,6 +20,7 @@ import {
   addError,
   addGroupedOrders,
   addTableData,
+  addSummaryData,
   $errors,
   $metrics,
   $groupedOrders,
@@ -27,13 +28,7 @@ import {
   $summaryData,
 } from '../effector/store';
 
-const computeSummary = ({
-  metrics,
-  tableData,
-}: {
-  metrics: ComputedTotalMetric;
-  tableData: TableData;
-}): SummaryData => {
+const computeSummary = (metrics: ComputedTotalMetric, tableData: TableData): SummaryData => {
   const totalProfit = round(sumBy(tableData, 'profit'), 2);
   const totalDividends = round(sumBy(tableData, 'dividends'), 2);
   const totalCost = Object.keys(metrics).reduce(
@@ -72,6 +67,7 @@ const computeMetrics = (ordersObj: GroupedOrders) =>
     }),
     {} as ComputedTotalMetric,
   );
+
 // 1 API call sent for ALL orders due to use of quoteCombine
 const getProfitPromise = (
   groupedOrders: GroupedOrders,
@@ -126,13 +122,15 @@ const getDividendPromise = (groupedOrders: GroupedOrders): Array<Promise<Dividen
 
 export const start = async (): Promise<void> => {
   const spinner = ora({ spinner: 'circle' });
-  spinner.start('Fetching data from server');
+  spinner.start('Reading portfolio json');
 
   // Create effects
-  const readPortfolioFx = createEffect(() => groupBy(readLocalConfig().orders, 'ticker'));
-  const computeMetricsFx = createEffect(computeMetrics);
+  const readPortfolioFx = createEffect(() => readLocalConfig().orders);
   const startFetchingFx = createEffect<
-    { groupedOrders: GroupedOrders; metrics: ComputedTotalMetric },
+    {
+      groupedOrders: GroupedOrders;
+      metrics: ComputedTotalMetric;
+    },
     TableData
   >(async ({ groupedOrders, metrics }) => {
     // Get profits and dividends of orders
@@ -143,7 +141,6 @@ export const start = async (): Promise<void> => {
       ...dividend,
     }));
   });
-  const computeSummaryFx = createEffect(computeSummary);
   const logFx = createEffect<
     { tableData: TableData; summaryData: SummaryData; errors: ErrorMessage[] },
     void
@@ -153,10 +150,18 @@ export const start = async (): Promise<void> => {
     logSummary(tableData, summaryData);
   });
 
-  // Chain reactions
-  forward({ from: readPortfolioFx.doneData, to: addGroupedOrders });
-  forward({ from: $groupedOrders.updates, to: computeMetricsFx });
-  forward({ from: computeMetricsFx.doneData, to: addMetric });
+  // Chain reaction
+  sample({
+    source: readPortfolioFx.doneData,
+    target: addGroupedOrders,
+    fn: (orders) => groupBy(orders, 'ticker'),
+  });
+  sample({
+    source: $groupedOrders,
+    clock: $groupedOrders.updates,
+    target: addMetric,
+    fn: computeMetrics,
+  });
   sample({
     source: $groupedOrders,
     clock: $metrics.updates,
@@ -167,16 +172,21 @@ export const start = async (): Promise<void> => {
   sample({
     source: $metrics,
     clock: $tableData.updates,
-    target: computeSummaryFx,
-    fn: (metrics, tableData) => ({ metrics, tableData }),
+    target: addSummaryData,
+    fn: computeSummary,
   });
-  forward({ from: computeSummaryFx.doneData, to: $summaryData });
   sample({
     source: [$tableData, $errors],
     clock: $summaryData.updates,
     target: logFx,
     fn: ([tableData, errors], summaryData) => ({ tableData, summaryData, errors }),
   });
+
+  // UI effects
+  startFetchingFx.pending.watch((pending) => {
+    if (pending) spinner.text = 'Fetching from server';
+  });
+
   // Start the ball rolling
   readPortfolioFx();
 };
