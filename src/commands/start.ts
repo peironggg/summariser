@@ -3,70 +3,27 @@ import { forward, sample, createEffect } from 'effector';
 import ora from 'ora';
 import { groupBy, sumBy, zipWith, round } from 'lodash';
 import { readLocalConfig, logSummary, logErrors } from '../utils/helper';
-import { REQUIRED_YAHOO_FIELDS, INITIAL_TICKER_METRIC } from '../utils/constants';
+import { REQUIRED_YAHOO_FIELDS } from '../utils/constants';
 import {
   ComputedTotalMetric,
   DividendColumns,
   ErrorMessage,
   GroupedOrders,
-  OrderConfig,
   ProfitColumns,
   SummaryData,
   TableData,
   YahooDividendsResponse,
 } from '../utils/types';
 import {
-  addMetric,
   addError,
   addGroupedOrders,
   addTableData,
-  addSummaryData,
   $errors,
   $metrics,
   $groupedOrders,
   $tableData,
   $summaryData,
 } from '../effector/store';
-
-const computeSummary = (metrics: ComputedTotalMetric, tableData: TableData): SummaryData => {
-  const totalProfit = round(sumBy(tableData, 'profit'), 2);
-  const totalDividends = round(sumBy(tableData, 'dividends'), 2);
-  const totalCost = Object.keys(metrics).reduce(
-    (sum, ticker) => sum + metrics[ticker].totalCost,
-    0,
-  );
-  const profitWithDividends = totalProfit + totalDividends;
-  return {
-    totalCost: {
-      value: totalCost,
-    },
-    profitSummary: {
-      value: totalProfit,
-      change: round((totalProfit / totalCost) * 100, 2),
-    },
-    profitWithDividendsSummary: {
-      value: profitWithDividends,
-      change: round((profitWithDividends / totalCost) * 100, 2),
-    },
-  };
-};
-
-const computeTickerMetrics = (orders: OrderConfig[]) =>
-  orders.reduce((metrics, { cost, volume }) => {
-    return {
-      totalVolume: metrics.totalVolume + volume,
-      totalCost: metrics.totalCost + cost * volume,
-    };
-  }, INITIAL_TICKER_METRIC);
-
-const computeMetrics = (ordersObj: GroupedOrders) =>
-  Object.keys(ordersObj).reduce(
-    (metricsObj, ticker) => ({
-      ...metricsObj,
-      [ticker]: computeTickerMetrics(ordersObj[ticker]),
-    }),
-    {} as ComputedTotalMetric,
-  );
 
 // 1 API call sent for ALL orders due to use of quoteCombine
 const getProfitPromise = (
@@ -157,29 +114,17 @@ export const start = async (): Promise<void> => {
     fn: (orders) => groupBy(orders, 'ticker'),
   });
   sample({
-    source: $groupedOrders,
+    source: $metrics,
     clock: $groupedOrders.updates,
-    target: addMetric,
-    fn: computeMetrics,
-  });
-  sample({
-    source: $groupedOrders,
-    clock: $metrics.updates,
     target: startFetchingFx,
-    fn: (groupedOrders, metrics) => ({ groupedOrders, metrics }),
+    fn: (metrics, groupedOrders) => ({ groupedOrders, metrics }),
   });
   forward({ from: startFetchingFx.doneData, to: addTableData });
   sample({
-    source: $metrics,
+    source: [$summaryData, $errors],
     clock: $tableData.updates,
-    target: addSummaryData,
-    fn: computeSummary,
-  });
-  sample({
-    source: [$tableData, $errors],
-    clock: $summaryData.updates,
     target: logFx,
-    fn: ([tableData, errors], summaryData) => ({ tableData, summaryData, errors }),
+    fn: ([summaryData, errors], tableData) => ({ tableData, summaryData, errors }),
   });
 
   // UI effects
