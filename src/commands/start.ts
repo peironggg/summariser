@@ -79,7 +79,7 @@ const getDividendPromise = (groupedOrders: GroupedOrders): Array<Promise<Dividen
 
 export const start = async (): Promise<void> => {
   const spinner = ora({ spinner: 'circle' });
-  spinner.start('Reading portfolio json');
+  spinner.start();
 
   // Create effects
   const readPortfolioFx = createEffect(() => readLocalConfig().orders);
@@ -128,6 +128,12 @@ export const start = async (): Promise<void> => {
   });
 
   // UI effects
+  readPortfolioFx.pending.watch((pending) => {
+    if (pending) spinner.text = 'Reading portfolio json';
+  });
+  readPortfolioFx.fail.watch(({ error }) => {
+    spinner.fail(`JSON file read error: ${error.message}`);
+  });
   startFetchingFx.pending.watch((pending) => {
     if (pending) spinner.text = 'Fetching from server';
   });
